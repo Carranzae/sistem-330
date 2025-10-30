@@ -1,0 +1,41 @@
+sistema/
+├── lib/
+│   ├── app/
+│   │   ├── config/
+│   │   │   ├── app_config.dart
+│   │   │   ├── constants.dart
+│   │   │   └── theme.dart
+│   │   ├── providers/
+│   │   │   └── app_provider.dart
+│   │   └── routes/
+│   │       └── app_router.dart
+│   ├── core/
+│   │   ├── errors/
+│   │   ├── services/
+│   │   └── utils/
+│   ├── data/
+│   │   ├── datasources/
+│   │   │   ├── local/
+│   │   │   └── remote/
+│   │   ├── models/
+│   │   └── repositories/
+│   ├── features/
+│   │   ├── auth/
+│   │   ├── onboarding/
+│   │   ├── dashboard/
+│   │   ├── pos/
+│   │   ├── inventory/
+│   │   ├── cash/
+│   │   ├── reports/
+│   │   ├── clients/
+│   │   └── providers/
+│   ├── shared/
+│   │   ├── widgets/
+│   │   └── helpers/
+│   └── main.dart
+├── assets/
+│   ├── images/
+│   ├── icons/
+│   └── fonts/
+├── test/
+└── pubspec.yaml
