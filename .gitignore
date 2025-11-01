@@ -13,12 +13,21 @@ sistema/.packages
 sistema/.pub/
 sistema/build/
 sistema/*.iml
+
+# Flutter platform folders (opcional, descomentar si no quieres subirlos)
+# sistema/android/
+# sistema/ios/
+# sistema/windows/
+
+# Flutter specific
 sistema/android/.gradle/
 sistema/android/local.properties
+sistema/android/.idea/
 sistema/ios/Pods/
 sistema/ios/.symlinks/
 sistema/ios/Flutter/.last_build_id
 sistema/windows/flutter/ephemeral/
+sistema/windows/CMakeFiles/
 
 # IDE
 .vscode/
