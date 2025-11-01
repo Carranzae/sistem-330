@@ -8,10 +8,19 @@ import 'app/routes/app_router.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  await Supabase.initialize(
-    url: AppConfig.supabaseUrl,
-    anonKey: AppConfig.supabaseAnonKey,
-  );
+  // Inicializar Supabase solo si las credenciales están configuradas
+  if (AppConfig.supabaseUrl != 'TU_URL_SUPABASE' && 
+      AppConfig.supabaseAnonKey != 'TU_ANON_KEY') {
+    try {
+      await Supabase.initialize(
+        url: AppConfig.supabaseUrl,
+        anonKey: AppConfig.supabaseAnonKey,
+      );
+    } catch (e) {
+      // Si falla la inicialización, continuar sin Supabase (modo demo)
+      debugPrint('Warning: No se pudo inicializar Supabase: $e');
+    }
+  }
 
   runApp(const MyApp());
 }

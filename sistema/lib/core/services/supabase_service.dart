@@ -25,10 +25,11 @@ class SupabaseService {
   }
 
   // Database methods
-  static Future<PostgrestResponse> createBusiness(Map<String, dynamic> data) async {
-    return await client
+  static Future<List<Map<String, dynamic>>> createBusiness(Map<String, dynamic> data) async {
+    final response = await client
       .from('negocios')
       .insert(data)
       .select();
+    return response;
   }
 }
