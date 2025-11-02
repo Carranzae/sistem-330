@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import '../../../../app/providers/app_provider.dart';
 import '../../../../shared/layouts/main_layout.dart';
+import '../../../credits/presentation/providers/credit_provider.dart';
 import '../../../inventory/presentation/widgets/qr_scanner_page.dart';
 
 /// Punto de Venta (POS) Profesional
@@ -21,7 +22,7 @@ class _POSPageState extends State<POSPage> {
   double _igv = 0.0;
   double _total = 0.0;
   String _selectedPaymentMethod = 'efectivo';
-  String? _selectedCustomer;
+  String? _selectedCustomer = 'Cliente Genérico';
 
   List<Map<String, dynamic>> _allProducts = [];
   List<Map<String, dynamic>> _filteredProducts = [];
@@ -691,71 +692,101 @@ class _POSPageState extends State<POSPage> {
   }
 
   Widget _buildPaymentDialog() {
-    return AlertDialog(
-      title: const Text('Procesar Pago'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF9FAFB),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text(
-                  'Total a Pagar',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                  ),
+    return Consumer<AppProvider>(
+      builder: (context, appProvider, _) {
+        return AlertDialog(
+          title: const Text('Procesar Pago'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF9FAFB),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: const Color(0xFFE5E7EB)),
                 ),
-                Text(
-                  'S/ ${_total.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF10B981),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    const Text(
+                      'Total a Pagar',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    Text(
+                      'S/ ${_total.toStringAsFixed(2)}',
+                      style: const TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w700,
+                        color: Color(0xFF10B981),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Método de Pago',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(height: 12),
+              _buildPaymentMethodSelector(appProvider.businessConfigurations['vende_a_credito'] ?? false),
+
+              if (_selectedPaymentMethod == 'credito') ...[
+                const SizedBox(height: 20),
+                DropdownButtonFormField<String>(
+                  value: _selectedCustomer,
+                  items: ['Cliente Genérico', 'Juan Pérez', 'María García']
+                      .map((label) => DropdownMenuItem(
+                            child: Text(label),
+                            value: label,
+                          ))
+                      .toList(),
+                  onChanged: (value) {
+                    setState(() {
+                      _selectedCustomer = value;
+                    });
+                  },
+                  decoration: const InputDecoration(
+                    labelText: 'Seleccionar Cliente',
+                    border: OutlineInputBorder(),
                   ),
                 ),
               ],
-            ),
+            ],
           ),
-          const SizedBox(height: 20),
-          const Text(
-            'Método de Pago',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
             ),
-          ),
-          const SizedBox(height: 12),
-          _buildPaymentMethodSelector(),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        ElevatedButton(
-          onPressed: () => _completeSale(),
-          child: const Text('Confirmar Pago'),
-        ),
-      ],
+            ElevatedButton(
+              onPressed: () => _completeSale(),
+              child: const Text('Confirmar Pago'),
+            ),
+          ],
+        );
+      },
     );
   }
 
-  Widget _buildPaymentMethodSelector() {
+  Widget _buildPaymentMethodSelector(bool allowCredit) {
     final methods = [
       {'id': 'efectivo', 'label': 'Efectivo', 'icon': Icons.money, 'color': const Color(0xFF10B981)},
       {'id': 'tarjeta', 'label': 'Tarjeta', 'icon': Icons.credit_card, 'color': const Color(0xFF2563EB)},
       {'id': 'yape', 'label': 'Yape', 'icon': Icons.account_balance_wallet, 'color': const Color(0xFFF59E0B)},
       {'id': 'plin', 'label': 'Plin', 'icon': Icons.phone_android, 'color': const Color(0xFF8B5CF6)},
     ];
+
+    if (allowCredit) {
+      methods.add({'id': 'credito', 'label': 'Crédito', 'icon': Icons.receipt_long, 'color': const Color(0xFFEF4444)});
+    }
 
     return Wrap(
       spacing: 8,
@@ -808,33 +839,58 @@ class _POSPageState extends State<POSPage> {
   }
 
   void _completeSale() {
-    Navigator.pop(context);
-    
-    // Mostrar éxito
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Venta procesada: S/ ${_total.toStringAsFixed(2)}',
-                style: const TextStyle(fontSize: 16),
+    if (_selectedPaymentMethod == 'credito') {
+      if (_selectedCustomer != null && _selectedCustomer!.isNotEmpty) {
+        Provider.of<CreditProvider>(context, listen: false)
+            .addCredit(_selectedCustomer!, _total);
+        Navigator.pop(context);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Venta a crédito de S/ ${_total.toStringAsFixed(2)} registrada a $_selectedCustomer.'),
+            backgroundColor: Colors.green,
+          ),
+        );
+        setState(() {
+          _cart.clear();
+          _calculateTotals();
+        });
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Por favor, selecciona un cliente para la venta a crédito.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } else {
+      Navigator.pop(context);
+
+      // Mostrar éxito
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              const Icon(Icons.check_circle, color: Colors.white),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Venta procesada: S/ ${_total.toStringAsFixed(2)}',
+                  style: const TextStyle(fontSize: 16),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
+          backgroundColor: const Color(0xFF10B981),
+          duration: const Duration(seconds: 3),
         ),
-        backgroundColor: const Color(0xFF10B981),
-        duration: const Duration(seconds: 3),
-      ),
-    );
-    
-    // Limpiar carrito
-    setState(() {
-      _cart.clear();
-      _calculateTotals();
-    });
+      );
+
+      // Limpiar carrito
+      setState(() {
+        _cart.clear();
+        _calculateTotals();
+      });
+    }
   }
 
   void _openQRScanner() {

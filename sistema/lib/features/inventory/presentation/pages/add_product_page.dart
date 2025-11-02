@@ -3,6 +3,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import 'dart:io';
+import 'package:intl/intl.dart';
 import '../../../../app/providers/app_provider.dart';
 import '../../../../shared/layouts/main_layout.dart';
 
@@ -28,6 +29,9 @@ class _AddProductPageState extends State<AddProductPage> {
   final _stockActualController = TextEditingController();
   final _stockMinimoController = TextEditingController();
   final _descripcionController = TextEditingController();
+  final _fechaVencimientoController = TextEditingController();
+
+  DateTime? _selectedDate;
   
   String _selectedCategory = 'Abarrotes';
   String _selectedUnit = 'UND';
@@ -294,6 +298,13 @@ class _AddProductPageState extends State<AddProductPage> {
               icon: Icons.scale,
               onChanged: (value) => setState(() => _selectedUnit = value!),
             ),
+
+            // Campo de fecha de vencimiento condicional
+            if (provider.manejaVencimientos) ...[
+              const SizedBox(height: 16),
+              _buildDateField(context),
+            ],
+
             const SizedBox(height: 32),
 
             // Botón guardar
@@ -521,6 +532,7 @@ class _AddProductPageState extends State<AddProductPage> {
         'stock_actual': int.parse(_stockActualController.text),
         'stock_minimo': int.parse(_stockMinimoController.text),
         'imagen_url': _selectedImage?.path,
+        'fecha_vencimiento': _selectedDate,
       };
 
       // TODO: Guardar en base de datos
@@ -561,6 +573,48 @@ class _AddProductPageState extends State<AddProductPage> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  Widget _buildDateField(BuildContext context) {
+    return TextFormField(
+      controller: _fechaVencimientoController,
+      decoration: InputDecoration(
+        labelText: 'Fecha de Vencimiento',
+        hintText: 'Selecciona una fecha',
+        prefixIcon: const Icon(Icons.calendar_today, color: Color(0xFF6B7280)),
+        filled: true,
+        fillColor: Colors.white,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF2563EB), width: 2),
+        ),
+      ),
+      readOnly: true,
+      onTap: () => _selectDate(context),
+    );
+  }
+
+  Future<void> _selectDate(BuildContext context) async {
+    final DateTime? picked = await showDatePicker(
+      context: context,
+      initialDate: _selectedDate ?? DateTime.now(),
+      firstDate: DateTime.now(),
+      lastDate: DateTime(2101),
+    );
+    if (picked != null && picked != _selectedDate) {
+      setState(() {
+        _selectedDate = picked;
+        _fechaVencimientoController.text = DateFormat('dd/MM/yyyy').format(picked);
+      });
     }
   }
 }
