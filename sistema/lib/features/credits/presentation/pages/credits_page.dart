@@ -1,17 +1,41 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import '../../../../app/providers/app_provider.dart';
 import '../../../../shared/layouts/main_layout.dart';
+import '../../data/datasources/credit_local_data_source.dart';
+import '../../data/repositories/credit_repository_impl.dart';
+import '../../domain/entities/credit.dart';
+import '../providers/credit_provider.dart';
 
 /// Módulo de Créditos / Fiados
-class CreditsPage extends StatefulWidget {
+class CreditsPage extends StatelessWidget {
   const CreditsPage({super.key});
 
   @override
-  State<CreditsPage> createState() => _CreditsPageState();
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (_) => CreditProvider(
+        creditRepository: CreditRepositoryImpl(
+          localDataSource: CreditLocalDataSourceImpl(),
+        ),
+      )..fetchCredits(), // Cargar créditos al iniciar
+      child: const _CreditsPageContent(),
+    );
+  }
+}
+
+class _CreditsPageContent extends StatefulWidget {
+  const _CreditsPageContent();
+
+  @override
+  State<_CreditsPageContent> createState() => _CreditsPageState();
 }
 
 class _CreditsPageState extends State<CreditsPage>
     with SingleTickerProviderStateMixin {
   late TabController _tabController;
+  final _clientController = TextEditingController();
+  final _amountController = TextEditingController();
 
   @override
   void initState() {
@@ -27,88 +51,91 @@ class _CreditsPageState extends State<CreditsPage>
 
   @override
   Widget build(BuildContext context) {
-    return MainLayout(
-      businessCategory: 'abarrotes',
-      businessName: 'Mi Negocio',
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header
-            Row(
+    return Consumer<AppProvider>(
+      builder: (context, appProvider, _) {
+        return MainLayout(
+          businessCategory: appProvider.currentBusinessCategory,
+          businessName: appProvider.currentBusinessName,
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF59E0B).withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(
-                    Icons.credit_card,
-                    color: Color(0xFFF59E0B),
-                    size: 24,
-                  ),
-                ),
-                const SizedBox(width: 16),
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Créditos y Fiados',
-                        style: TextStyle(
-                          fontSize: 28,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF1F2937),
-                        ),
-                      ),
-                      SizedBox(height: 4),
-                      Text(
-                        'Gestiona préstamos y fiados de clientes',
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: Color(0xFF6B7280),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                // Botón Nuevo Fiado
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: _showNewCreditDialog,
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                // Header
+                Row(
+                  children: [
+                    Container(
+                      width: 48,
+                      height: 48,
                       decoration: BoxDecoration(
-                        color: const Color(0xFFF59E0B),
+                        color: const Color(0xFFF59E0B).withOpacity(0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
+                      child: const Icon(
+                        Icons.credit_card,
+                        color: Color(0xFFF59E0B),
+                        size: 24,
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    const Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Icon(Icons.add, color: Colors.white, size: 20),
-                          SizedBox(width: 8),
                           Text(
-                            'Nuevo Fiado',
+                            'Créditos y Fiados',
                             style: TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.white,
+                              fontSize: 28,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1F2937),
+                            ),
+                          ),
+                          SizedBox(height: 4),
+                          Text(
+                            'Gestiona préstamos y fiados de clientes',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Color(0xFF6B7280),
                             ),
                           ),
                         ],
                       ),
                     ),
-                  ),
+                    // Botón Nuevo Fiado
+                    if (appProvider.businessConfigurations['vende_a_credito'] ?? false)
+                      Material(
+                        color: Colors.transparent,
+                        child: InkWell(
+                          onTap: _showNewCreditDialog,
+                          borderRadius: BorderRadius.circular(12),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF59E0B),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.add, color: Colors.white, size: 20),
+                                SizedBox(width: 8),
+                                Text(
+                                  'Nuevo Fiado',
+                                  style: TextStyle(
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.w600,
+                                    color: Colors.white,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
                 ),
-              ],
-            ),
 
-            const SizedBox(height: 32),
+                const SizedBox(height: 32),
 
             // Métricas principales
             Row(
@@ -295,34 +322,30 @@ class _CreditsPageState extends State<CreditsPage>
   }
 
   Widget _buildDebtorsTab() {
-    return SingleChildScrollView(
-      child: Column(
-        children: [
-          // Lista de clientes con deuda
-          ListView.builder(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: 5,
-            itemBuilder: (context, index) {
-              return _buildDebtorCard(index);
-            },
-          ),
-        ],
-      ),
+    return Consumer<CreditProvider>(
+      builder: (context, creditProvider, child) {
+        if (creditProvider.isLoading) {
+          return const Center(child: CircularProgressIndicator());
+        }
+
+        if (creditProvider.credits.isEmpty) {
+          return const Center(child: Text('No hay clientes con deudas.'));
+        }
+
+        return ListView.builder(
+          itemCount: creditProvider.credits.length,
+          itemBuilder: (context, index) {
+            final credit = creditProvider.credits[index];
+            return _buildDebtorCard(credit);
+          },
+        );
+      },
     );
   }
 
-  Widget _buildDebtorCard(int index) {
-    final debtors = [
-      {'name': 'Juan Pérez', 'debt': 'S/ 1,250', 'days': 15, 'score': 'Bajo'},
-      {'name': 'María García', 'debt': 'S/ 850', 'days': 5, 'score': 'Medio'},
-      {'name': 'Carlos López', 'debt': 'S/ 2,400', 'days': 45, 'score': 'Alto'},
-      {'name': 'Ana Martínez', 'debt': 'S/ 620', 'days': 3, 'score': 'Bajo'},
-      {'name': 'Luis Rodríguez', 'debt': 'S/ 1,800', 'days': 30, 'score': 'Medio'},
-    ];
-    
-    final debtor = debtors[index];
-    final isMora = (debtor['days'] as int) >= 30;
+  Widget _buildDebtorCard(Credit credit) {
+    final days = DateTime.now().difference(credit.date).inDays;
+    final isMora = days >= 30;
     
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -355,7 +378,7 @@ class _CreditsPageState extends State<CreditsPage>
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  debtor['name'] as String,
+                  credit.clientId,
                   style: const TextStyle(
                     fontSize: 16,
                     fontWeight: FontWeight.w600,
@@ -366,7 +389,7 @@ class _CreditsPageState extends State<CreditsPage>
                 Row(
                   children: [
                     Text(
-                      'Deuda: ${debtor['debt']}',
+                      'Deuda: S/ ${credit.amount.toStringAsFixed(2)}',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.grey[700],
@@ -380,7 +403,7 @@ class _CreditsPageState extends State<CreditsPage>
                         borderRadius: BorderRadius.circular(4),
                       ),
                       child: Text(
-                        '${debtor['days']} días',
+                        '$days días',
                         style: TextStyle(
                           fontSize: 11,
                           fontWeight: FontWeight.w600,
@@ -391,21 +414,6 @@ class _CreditsPageState extends State<CreditsPage>
                   ],
                 ),
               ],
-            ),
-          ),
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-            decoration: BoxDecoration(
-              color: _getScoreColor(debtor['score'] as String).withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: Text(
-              debtor['score'] as String,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
-                color: _getScoreColor(debtor['score'] as String),
-              ),
             ),
           ),
         ],
@@ -683,16 +691,62 @@ class _CreditsPageState extends State<CreditsPage>
   void _showNewCreditDialog() {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Nueva Venta Fiada'),
-        content: const Text('Funcionalidad en desarrollo'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cerrar'),
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Registrar Nuevo Fiado'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: _clientController,
+                decoration: const InputDecoration(
+                  labelText: 'Nombre del Cliente',
+                  icon: Icon(Icons.person),
+                ),
+              ),
+              const SizedBox(height: 16),
+              TextField(
+                controller: _amountController,
+                decoration: const InputDecoration(
+                  labelText: 'Monto del Fiado',
+                  icon: Icon(Icons.attach_money),
+                ),
+                keyboardType: TextInputType.number,
+              ),
+            ],
           ),
-        ],
-      ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                _clientController.clear();
+                _amountController.clear();
+                Navigator.pop(context);
+              },
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                final client = _clientController.text;
+                final amount = double.tryParse(_amountController.text) ?? 0.0;
+                if (client.isNotEmpty && amount > 0) {
+                  Provider.of<CreditProvider>(context, listen: false)
+                      .addCredit(client, amount);
+                  _clientController.clear();
+                  _amountController.clear();
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Fiado registrado con éxito.'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Guardar'),
+            ),
+          ],
+        );
+      },
     );
   }
 
