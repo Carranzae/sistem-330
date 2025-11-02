@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'app/providers/app_provider.dart';
 import 'app/routes/app_router.dart';
+import 'features/credits/data/datasources/credit_local_data_source.dart';
+import 'features/credits/data/repositories/credit_repository_impl.dart';
+import 'features/credits/presentation/providers/credit_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -19,6 +22,13 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AppProvider()),
+        ChangeNotifierProvider(
+          create: (_) => CreditProvider(
+            creditRepository: CreditRepositoryImpl(
+              localDataSource: CreditLocalDataSourceImpl(),
+            ),
+          )..fetchCredits(),
+        ),
       ],
       child: MaterialApp.router(
         title: 'Sistema Multi-Negocio',

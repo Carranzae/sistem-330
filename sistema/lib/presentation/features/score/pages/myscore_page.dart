@@ -22,14 +22,14 @@ class _MyScorePageState extends State<MyScorePage>
 
   // Datos simulados para el score
   final int _currentScore = 785; // Score actual (0-1000)
-  
+
   // Factores dinámicos según la categoría
   List<ScoreFactor> get _factors {
     final category = Provider.of<AppProvider>(context, listen: false)
         .currentBusinessCategory;
     return _getFactorsByCategory(category);
   }
-  
+
   // Método que retorna factores según la categoría
   List<ScoreFactor> _getFactorsByCategory(String category) {
     switch (category) {
@@ -58,7 +58,7 @@ class _MyScorePageState extends State<MyScorePage>
         return _getDefaultFactors();
     }
   }
-  
+
   // Factores para Abarrotes/Bodega
   List<ScoreFactor> _getAbarrotesFactors() {
     return [
@@ -118,7 +118,7 @@ class _MyScorePageState extends State<MyScorePage>
       ),
     ];
   }
-  
+
   // Factores para Farmacia
   List<ScoreFactor> _getFarmaciaFactors() {
     return [
@@ -178,7 +178,7 @@ class _MyScorePageState extends State<MyScorePage>
       ),
     ];
   }
-  
+
   // Factores para Verdulería
   List<ScoreFactor> _getVerduleriaFactors() {
     return [
@@ -238,7 +238,7 @@ class _MyScorePageState extends State<MyScorePage>
       ),
     ];
   }
-  
+
   // Factores para Carnicería
   List<ScoreFactor> _getCarniceriaFactors() {
     return [
@@ -298,7 +298,7 @@ class _MyScorePageState extends State<MyScorePage>
       ),
     ];
   }
-  
+
   // Factores para Restaurante
   List<ScoreFactor> _getRestauranteFactors() {
     return [
@@ -358,7 +358,7 @@ class _MyScorePageState extends State<MyScorePage>
       ),
     ];
   }
-  
+
   // Factores para Electrónica
   List<ScoreFactor> _getElectronicaFactors() {
     return [
@@ -418,7 +418,7 @@ class _MyScorePageState extends State<MyScorePage>
       ),
     ];
   }
-  
+
   // Factores para Ropa y Calzado
   List<ScoreFactor> _getRopaFactors() {
     return [
@@ -478,7 +478,7 @@ class _MyScorePageState extends State<MyScorePage>
       ),
     ];
   }
-  
+
   // Factores para Ferretería
   List<ScoreFactor> _getFerreteriaFactors() {
     return [
@@ -538,7 +538,7 @@ class _MyScorePageState extends State<MyScorePage>
       ),
     ];
   }
-  
+
   // Factores para Hogar y Decoración
   List<ScoreFactor> _getHogarFactors() {
     return [
@@ -598,7 +598,7 @@ class _MyScorePageState extends State<MyScorePage>
       ),
     ];
   }
-  
+
   // Factores para Mayorista
   List<ScoreFactor> _getMayoristaFactors() {
     return [
@@ -658,7 +658,7 @@ class _MyScorePageState extends State<MyScorePage>
       ),
     ];
   }
-  
+
   // Factores por defecto
   List<ScoreFactor> _getDefaultFactors() {
     return [
@@ -969,9 +969,9 @@ class _MyScorePageState extends State<MyScorePage>
               ],
             ),
           ),
-          
+
           const SizedBox(height: 24),
-          
+
           // Lista de factores
           ..._factors.map((factor) => _buildFactorCard(factor)),
         ],
@@ -1815,4 +1815,3 @@ enum Trend {
   down,
   stable,
 }
-

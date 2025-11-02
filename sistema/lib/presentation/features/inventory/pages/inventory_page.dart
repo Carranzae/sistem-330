@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
 import '../../../../app/providers/app_provider.dart';
 import '../../../../shared/layouts/main_layout.dart';
 import '../widgets/product_qr_dialog.dart';
@@ -477,6 +478,25 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
                         color: Colors.grey[600],
                       ),
                     ),
+
+                    if (product['fecha_vencimiento'] != null) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          Icon(Icons.calendar_today, size: 14, color: Colors.red[700]),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Vence: ${DateFormat('dd/MM/yyyy').format(product['fecha_vencimiento'])}',
+                            style: TextStyle(
+                              fontSize: 12,
+                              color: Colors.red[700],
+                              fontWeight: FontWeight.w600,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+
                     const SizedBox(height: 8),
                     Row(
                       children: [
@@ -660,6 +680,7 @@ class _InventoryPageState extends State<InventoryPage> with SingleTickerProvider
         'precio_venta': 3.50,
         'categoria': 'Lácteos',
         'imagen_url': null,
+        'fecha_vencimiento': DateTime.now().add(const Duration(days: 30)),
       },
     ];
 
