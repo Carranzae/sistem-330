@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../../../../app/providers/app_provider.dart';
 import 'business_data_step.dart';
 import 'business_category_step.dart';
 import 'configuration_step.dart';
@@ -71,6 +73,9 @@ class _OnboardingPageState extends State<OnboardingPage> {
                       setState(() {
                         _businessData['configuracion'] = config;
                       });
+                      // Guardar en el AppProvider
+                      Provider.of<AppProvider>(context, listen: false)
+                          .setBusinessConfigurations(config);
                       _nextStep();
                     },
                   ),
