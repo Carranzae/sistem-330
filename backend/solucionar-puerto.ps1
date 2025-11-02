@@ -37,3 +37,4 @@ Write-Host "`n📝 Alternativa: Usar otro puerto" -ForegroundColor Cyan
 Write-Host "   PORT=3001 npm run dev" -ForegroundColor Gray
 
 
+

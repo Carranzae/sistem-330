@@ -87,8 +87,8 @@ class ErrorHandler {
     return failure.message;
   }
 
-  /// Parsea error de Supabase
-  static BaseException parseSupabaseError(dynamic error) {
+  /// Parsea error del backend PostgreSQL
+  static BaseException parsePostgresError(dynamic error) {
     try {
       if (error is Map) {
         final message = error['message'] as String?;
@@ -99,14 +99,18 @@ class ErrorHandler {
           return ServerException.fromStatusCode(statusCode, message);
         }
         
-        // Códigos de error de Supabase
+        // Códigos de error de PostgreSQL
         switch (code) {
-          case 'PGRST116':
-            return const NotFoundException('Recurso no encontrado');
-          case '23505':
+          case 'P0001': // Raise exception
+            return const ValidationException('Error de validación');
+          case '23505': // Unique violation
             return const ValidationException('El registro ya existe');
-          case '23503':
+          case '23503': // Foreign key violation
             return const ValidationException('Violación de clave foránea');
+          case '42P01': // Undefined table
+            return const NotFoundException('Tabla no encontrada');
+          case '42703': // Undefined column
+            return const ValidationException('Columna no encontrada');
           default:
             return ServerException(message ?? 'Error desconocido');
         }

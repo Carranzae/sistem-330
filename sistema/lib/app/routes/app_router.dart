@@ -1,28 +1,28 @@
 import 'package:go_router/go_router.dart';
 
 // Importar pantallas
-import '../../features/auth/presentation/pages/login_page.dart';
-import '../../features/onboarding/presentation/pages/onboarding_page.dart';
-import '../../features/dashboard/presentation/pages/dashboard_page.dart';
-import '../../features/pos/presentation/pages/pos_page.dart';
-import '../../features/inventory/presentation/pages/inventory_page.dart';
-import '../../features/clients/presentation/pages/clients_page.dart';
-import '../../features/cash/presentation/pages/cash_page.dart';
-import '../../features/reports/presentation/pages/reports_page.dart';
-import '../../features/providers/presentation/pages/providers_page.dart';
-import '../../features/documents/presentation/pages/billing_page.dart';
-import '../../features/payments/presentation/pages/zipay_config_page.dart';
-import '../../features/printer/presentation/pages/printer_config_page.dart';
-import '../../features/financial/presentation/pages/financial_statement_page.dart';
+import '../../presentation/features/auth/pages/login_page.dart';
+import '../../presentation/features/onboarding/pages/onboarding_page.dart';
+import '../../presentation/features/dashboard/pages/dashboard_page.dart';
+import '../../presentation/features/pos/pages/pos_page.dart';
+import '../../presentation/features/inventory/pages/inventory_page.dart';
+import '../../presentation/features/clients/pages/clients_page.dart';
+import '../../presentation/features/cash/pages/cash_page.dart';
+import '../../presentation/features/reports/pages/reports_page.dart';
+import '../../presentation/features/providers/pages/providers_page.dart';
+import '../../presentation/features/documents/pages/billing_page.dart';
+import '../../presentation/features/payments/pages/zipay_config_page.dart';
+import '../../presentation/features/printer/pages/printer_config_page.dart';
+import '../../presentation/features/financial/pages/financial_statement_page.dart';
 
 // Nuevos módulos para abarrotes
-import '../../features/purchases/presentation/pages/purchases_page.dart';
-import '../../features/credits/presentation/pages/credits_page.dart';
-import '../../features/score/presentation/pages/myscore_page.dart';
-import '../../features/pronostics/presentation/pages/pronostics_page.dart';
-import '../../features/notifications/presentation/pages/notifications_page.dart';
-import '../../features/settings/presentation/pages/settings_page.dart';
-import '../../features/help/presentation/pages/help_page.dart';
+import '../../presentation/features/purchases/pages/purchases_page.dart';
+import '../../presentation/features/credits/pages/credits_page.dart';
+import '../../presentation/features/score/pages/myscore_page.dart';
+import '../../presentation/features/pronostics/pages/pronostics_page.dart';
+import '../../presentation/features/notifications/pages/notifications_page.dart';
+import '../../presentation/features/settings/pages/settings_page.dart';
+import '../../presentation/features/help/pages/help_page.dart';
 
 final appRouter = GoRouter(
   initialLocation: '/',

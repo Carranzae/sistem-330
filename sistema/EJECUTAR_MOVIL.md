@@ -194,7 +194,7 @@ flutter run --release
 - [x] Permisos Android/iOS configurados
 
 ### 🔄 Pendiente (Opcional)
-- [ ] Conexión real con Supabase
+- [ ] Conexión real con backend PostgreSQL
 - [ ] Persistencia de datos
 - [ ] Autenticación real
 - [ ] Backend API
@@ -205,7 +205,7 @@ flutter run --release
 
 1. **Ejecuta en emulador** para ver el flujo completo
 2. **Prueba en dispositivo físico** para testing real
-3. **Configura Supabase** para guardar datos persistentes
+3. **Configura PostgreSQL** para guardar datos persistentes
 4. **Personaliza colores** según tu marca
 
 ---

@@ -1,27 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:provider/provider.dart';
-import 'app/config/app_config.dart';
 import 'app/providers/app_provider.dart';
 import 'app/routes/app_router.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
-  // Inicializar Supabase solo si las credenciales están configuradas
-  if (AppConfig.supabaseUrl != 'TU_URL_SUPABASE' && 
-      AppConfig.supabaseAnonKey != 'TU_ANON_KEY') {
-    try {
-      await Supabase.initialize(
-        url: AppConfig.supabaseUrl,
-        anonKey: AppConfig.supabaseAnonKey,
-      );
-    } catch (e) {
-      // Si falla la inicialización, continuar sin Supabase (modo demo)
-      debugPrint('Warning: No se pudo inicializar Supabase: $e');
-    }
-  }
-
+  // TODO: Inicializar PostgreSQL connection pool cuando se implemente
+  
   runApp(const MyApp());
 }
 

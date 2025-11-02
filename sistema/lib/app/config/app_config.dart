@@ -1,6 +1,8 @@
 class AppConfig {
-  static const String supabaseUrl = 'TU_URL_SUPABASE';
-  static const String supabaseAnonKey = 'TU_ANON_KEY';
+  // PostgreSQL Configuration (para backend)
+  static const String dbHost = 'localhost'; // Cambiar por URL de PostgreSQL en producción
+  static const int dbPort = 5432;
+  static const String dbName = 'multinegocio';
   
   // Colores
   static const primaryColor = 0xFF2563EB;
