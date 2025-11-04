@@ -1,0 +1,51 @@
+# Node modules
+node_modules/
+npm-debug.log
+yarn-error.log
+package-lock.json
+
+# Flutter
+sistema/.dart_tool/
+sistema/.flutter-plugins
+sistema/.flutter-plugins-dependencies
+sistema/.metadata
+sistema/.packages
+sistema/.pub/
+sistema/build/
+sistema/*.iml
+
+# Flutter platform folders (opcional, descomentar si no quieres subirlos)
+# sistema/android/
+# sistema/ios/
+# sistema/windows/
+
+# Flutter specific
+sistema/android/.gradle/
+sistema/android/local.properties
+sistema/android/.idea/
+sistema/ios/Pods/
+sistema/ios/.symlinks/
+sistema/ios/Flutter/.last_build_id
+sistema/windows/flutter/ephemeral/
+sistema/windows/CMakeFiles/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Backend
+backend/node_modules/
+backend/.env
+backend/.env.local
+backend/.env.*
+
+# Scripts de Git
+git-*.ps1
+
