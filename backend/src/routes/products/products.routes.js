@@ -42,5 +42,19 @@ router.delete('/:id',
   productController.deleteProduct
 );
 
+// PUT /api/products/:id/stock
+router.put('/:id/stock', 
+  authenticateToken,
+  commonValidations.uuid,
+  handleValidationErrors,
+  productController.adjustStock
+);
+
+// GET /api/products/low-stock
+router.get('/low-stock/all', 
+  authenticateToken,
+  productController.getProductsWithLowStock
+);
+
 module.exports = router;
 

@@ -5,6 +5,7 @@
 
 const { query } = require('../../config/database');
 const logger = require('../logger/logger.service');
+const { updateMultipleStocks } = require('../product/product.service');
 
 // Obtener todas las ventas
 const getAllSales = async (businessId = null) => {
@@ -62,6 +63,11 @@ const createSale = async (saleData) => {
       notas,
     } = saleData;
 
+    // Verificar y actualizar stock antes de crear la venta
+    if (productos && Array.isArray(productos) && productos.length > 0) {
+      await updateMultipleStocks(productos);
+    }
+
     const result = await query(
       `INSERT INTO ventas (
         negocio_id, cliente_id, productos, total, subtotal,
@@ -84,9 +90,6 @@ const createSale = async (saleData) => {
     
     const sale = result.rows[0];
     logger.info('Venta creada', { saleId: sale.id, total: sale.total });
-    
-    // TODO: Actualizar stock de productos
-    // await updateProductStock(productos);
     
     return sale;
   } catch (error) {

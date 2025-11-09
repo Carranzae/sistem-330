@@ -47,11 +47,36 @@ const deleteProduct = asyncHandler(async (req, res) => {
   return success(res, null, 'Producto eliminado exitosamente');
 });
 
+// PUT /api/products/:id/stock
+const adjustStock = asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { quantity, operation } = req.body;
+  
+  if (!quantity) {
+    return error(res, 'La cantidad es requerida', 400);
+  }
+  
+  const product = await productService.adjustStock(id, quantity, operation || 'set');
+  return success(res, product, 'Stock actualizado exitosamente');
+});
+
+// GET /api/products/low-stock
+const getProductsWithLowStock = asyncHandler(async (req, res) => {
+  const { businessId, threshold } = req.query;
+  const products = await productService.getProductsWithLowStock(
+    businessId, 
+    threshold ? parseInt(threshold) : 10
+  );
+  return success(res, products, 'Productos con stock bajo obtenidos exitosamente');
+});
+
 module.exports = {
   getAllProducts,
   getProductById,
   createProduct,
   updateProduct,
   deleteProduct,
+  adjustStock,
+  getProductsWithLowStock,
 };
 

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:printing/printing.dart';
 import '../../../../core/services/qr_service.dart';
+import '../../../../core/services/pdf_service.dart';
 
 /// Diálogo para mostrar código QR del producto
 class ProductQRDialog extends StatelessWidget {
@@ -94,12 +97,35 @@ class ProductQRDialog extends StatelessWidget {
               children: [
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () {
-                      // TODO: Compartir QR
-                      Navigator.pop(context);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text('QR copiado al portapapeles')),
-                      );
+                    onPressed: () async {
+                      try {
+                        // Copiar código QR al portapapeles
+                        await Clipboard.setData(ClipboardData(text: qrData));
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(
+                              content: Row(
+                                children: [
+                                  Icon(Icons.check_circle, color: Colors.white),
+                                  SizedBox(width: 8),
+                                  Text('Código QR copiado al portapapeles'),
+                                ],
+                              ),
+                              backgroundColor: Color(0xFF10B981),
+                            ),
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error al copiar: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
                     },
                     icon: const Icon(Icons.share),
                     label: const Text('Compartir'),
@@ -114,9 +140,40 @@ class ProductQRDialog extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () {
-                      // TODO: Imprimir QR
-                      Navigator.pop(context);
+                    onPressed: () async {
+                      try {
+                        // Generar imagen del QR como bytes
+                        final qrBytes = await QRService.generateQRCodeBytes(
+                          data: qrData,
+                          size: 300,
+                        );
+                        
+                        if (context.mounted) {
+                          // Usar el servicio de impresión
+                          await Printing.layoutPdf(
+                            onLayout: (format) async {
+                              // Crear un PDF simple con el QR
+                              final pdf = await PDFService.generateQRPDF(
+                                qrBytes: qrBytes,
+                                productName: productName,
+                                productCode: productCode,
+                                price: price,
+                              );
+                              return pdf;
+                            },
+                          );
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          Navigator.pop(context);
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(
+                              content: Text('Error al imprimir: $e'),
+                              backgroundColor: Colors.red,
+                            ),
+                          );
+                        }
+                      }
                     },
                     icon: const Icon(Icons.print),
                     label: const Text('Imprimir'),

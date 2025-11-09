@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
 import '../../../../app/providers/app_provider.dart';
 import '../../../../shared/layouts/main_layout.dart';
+import '../../../../core/services/api_service.dart';
 import '../../inventory/widgets/qr_scanner_page.dart';
 
 /// Punto de Venta (POS) Profesional
@@ -15,6 +15,7 @@ class POSPage extends StatefulWidget {
 
 class _POSPageState extends State<POSPage> {
   final TextEditingController _searchController = TextEditingController();
+  final TextEditingController _customerNameController = TextEditingController();
   final List<Map<String, dynamic>> _cart = [];
   double _subtotal = 0.0;
   double _descuento = 0.0;
@@ -25,30 +26,66 @@ class _POSPageState extends State<POSPage> {
 
   List<Map<String, dynamic>> _allProducts = [];
   List<Map<String, dynamic>> _filteredProducts = [];
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    _loadProducts();
     _searchController.addListener(_filterProducts);
+    // Cargar productos después de que el widget esté montado
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadProducts();
+    });
   }
 
   @override
   void dispose() {
     _searchController.dispose();
+    _customerNameController.dispose();
     super.dispose();
   }
 
-  void _loadProducts() {
-    // Simular productos
-    _allProducts = [
-      {'id': '1', 'nombre': 'Arroz Extra', 'precio': 18.50, 'categoria': 'Abarrotes', 'stock': 15},
-      {'id': '2', 'nombre': 'Aceite Vegetal', 'precio': 12.90, 'categoria': 'Abarrotes', 'stock': 25},
-      {'id': '3', 'nombre': 'Leche Evaporada', 'precio': 3.50, 'categoria': 'Lácteos', 'stock': 40},
-      {'id': '4', 'nombre': 'Azúcar Rubia', 'precio': 4.20, 'categoria': 'Abarrotes', 'stock': 30},
-      {'id': '5', 'nombre': 'Fideos', 'precio': 2.80, 'categoria': 'Abarrotes', 'stock': 50},
-    ];
-    _filteredProducts = _allProducts;
+  Future<void> _loadProducts() async {
+    try {
+      final provider = Provider.of<AppProvider>(context, listen: false);
+      final products = await ApiService.getProducts(businessId: provider.currentBusinessId);
+      
+      if (mounted) {
+        setState(() {
+          _allProducts = products.map((p) => {
+            'id': p['id'],
+            'nombre': p['nombre'],
+            'precio': (p['precio'] ?? 0.0).toDouble(),
+            'categoria': p['categoria'] ?? 'Otros',
+            'stock': p['stock'] ?? 0,
+          }).toList();
+          _filteredProducts = _allProducts;
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      // Si falla, usar productos de ejemplo
+      if (mounted) {
+        setState(() {
+          _allProducts = [
+            {'id': '1', 'nombre': 'Arroz Extra', 'precio': 18.50, 'categoria': 'Abarrotes', 'stock': 15},
+            {'id': '2', 'nombre': 'Aceite Vegetal', 'precio': 12.90, 'categoria': 'Abarrotes', 'stock': 25},
+            {'id': '3', 'nombre': 'Leche Evaporada', 'precio': 3.50, 'categoria': 'Lácteos', 'stock': 40},
+            {'id': '4', 'nombre': 'Azúcar Rubia', 'precio': 4.20, 'categoria': 'Abarrotes', 'stock': 30},
+            {'id': '5', 'nombre': 'Fideos', 'precio': 2.80, 'categoria': 'Abarrotes', 'stock': 50},
+          ];
+          _filteredProducts = _allProducts;
+          _isLoading = false;
+        });
+        
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cargar productos: $e'),
+            backgroundColor: Colors.orange,
+          ),
+        );
+      }
+    }
   }
 
   void _filterProducts() {
@@ -162,9 +199,14 @@ class _POSPageState extends State<POSPage> {
           // Mobile layout
           return Column(
             children: [
-              Expanded(child: _buildProductSection()),
-              const SizedBox(height: 16),
-              Expanded(flex: 1, child: _buildCartSection()),
+              Expanded(
+                child: _buildProductSection(),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                height: constraints.maxHeight * 0.45,
+                child: _buildCartSection(),
+              ),
             ],
           );
         }
@@ -224,25 +266,27 @@ class _POSPageState extends State<POSPage> {
           
           // Grid de productos
           Expanded(
-            child: _filteredProducts.isEmpty
-                ? _buildEmptyState()
-                : LayoutBuilder(
-                    builder: (context, constraints) {
-                      return GridView.builder(
-                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: constraints.maxWidth > 900 ? 4 : 2,
-                          crossAxisSpacing: 12,
-                          mainAxisSpacing: 12,
-                          childAspectRatio: 0.8,
-                        ),
-                        itemCount: _filteredProducts.length,
-                        itemBuilder: (context, index) {
-                          final product = _filteredProducts[index];
-                          return _buildProductCard(product);
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
+                : _filteredProducts.isEmpty
+                    ? _buildEmptyState()
+                    : LayoutBuilder(
+                        builder: (context, constraints) {
+                          return GridView.builder(
+                            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                              crossAxisCount: constraints.maxWidth > 900 ? 4 : 2,
+                              crossAxisSpacing: 12,
+                              mainAxisSpacing: 12,
+                              childAspectRatio: 0.8,
+                            ),
+                            itemCount: _filteredProducts.length,
+                            itemBuilder: (context, index) {
+                              final product = _filteredProducts[index];
+                              return _buildProductCard(product);
+                            },
+                          );
                         },
-                      );
-                    },
-                  ),
+                      ),
           ),
         ],
       ),
@@ -293,60 +337,63 @@ class _POSPageState extends State<POSPage> {
               ),
               
               // Info del producto
-              Padding(
-                padding: const EdgeInsets.all(12),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      product['nombre'],
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: Color(0xFF1F2937),
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      product['categoria'],
-                      style: TextStyle(
-                        fontSize: 11,
-                        color: Colors.grey[600],
-                      ),
-                    ),
-                    const Spacer(),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Text(
-                          'S/ ${product['precio'].toStringAsFixed(2)}',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: hasStock ? const Color(0xFF10B981) : Colors.red.shade600,
-                          ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        product['nombre'],
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: Color(0xFF1F2937),
                         ),
-                        if (!hasStock)
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: Colors.red.shade50,
-                              borderRadius: BorderRadius.circular(4),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        product['categoria'],
+                        style: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey[600],
+                        ),
+                      ),
+                      const Spacer(),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'S/ ${product['precio'].toStringAsFixed(2)}',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: hasStock ? const Color(0xFF10B981) : Colors.red.shade600,
                             ),
-                            child: const Text(
-                              'Sin stock',
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: Color(0xFFEF4444),
-                                fontWeight: FontWeight.w600,
+                          ),
+                          if (!hasStock)
+                            Container(
+                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                              decoration: BoxDecoration(
+                                color: Colors.red.shade50,
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                'Sin stock',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  color: Color(0xFFEF4444),
+                                  fontWeight: FontWeight.w600,
+                                ),
                               ),
                             ),
-                          ),
-                      ],
-                    ),
-                  ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ],
@@ -402,7 +449,7 @@ class _POSPageState extends State<POSPage> {
         children: [
           // Header del carrito
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: const Color(0xFF2563EB),
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
@@ -474,7 +521,7 @@ class _POSPageState extends State<POSPage> {
           
           // Totales
           Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
             decoration: BoxDecoration(
               color: const Color(0xFFF9FAFB),
               borderRadius: const BorderRadius.vertical(bottom: Radius.circular(16)),
@@ -483,30 +530,31 @@ class _POSPageState extends State<POSPage> {
               ),
             ),
             child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
                 _buildTotalRow('Subtotal', _subtotal, isSecondary: true),
-                const SizedBox(height: 8),
+                const SizedBox(height: 6),
                 _buildTotalRow('IGV (18%)', _igv, isSecondary: true),
                 if (_descuento > 0) ...[
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 6),
                   _buildTotalRow('Descuento', -_descuento, isDiscount: true),
                 ],
-                const Divider(height: 24),
+                const Divider(height: 16),
                 _buildTotalRow('TOTAL', _total, isTotal: true),
-                const SizedBox(height: 16),
+                const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     onPressed: _processPayment,
-                    icon: const Icon(Icons.payment, size: 24),
+                    icon: const Icon(Icons.payment, size: 20),
                     label: const Text(
                       'Procesar Pago',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+                      style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600),
                     ),
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF10B981),
                       foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
@@ -641,7 +689,7 @@ class _POSPageState extends State<POSPage> {
         Text(
           label,
           style: TextStyle(
-            fontSize: isTotal ? 18 : 14,
+            fontSize: isTotal ? 16 : 13,
             fontWeight: isTotal ? FontWeight.w700 : FontWeight.w500,
             color: isTotal ? const Color(0xFF1F2937) : const Color(0xFF6B7280),
           ),
@@ -649,7 +697,7 @@ class _POSPageState extends State<POSPage> {
         Text(
           'S/ ${amount.toStringAsFixed(2)}',
           style: TextStyle(
-            fontSize: isTotal ? 24 : 16,
+            fontSize: isTotal ? 20 : 15,
             fontWeight: FontWeight.w700,
             color: isTotal 
                 ? const Color(0xFF10B981)
@@ -666,22 +714,23 @@ class _POSPageState extends State<POSPage> {
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.shopping_cart_outlined, size: 80, color: Colors.grey[300]),
-          const SizedBox(height: 16),
+          Icon(Icons.shopping_cart_outlined, size: 60, color: Colors.grey[300]),
+          const SizedBox(height: 12),
           Text(
             'Carrito vacío',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 16,
               fontWeight: FontWeight.w600,
               color: Colors.grey[600],
             ),
           ),
-          const SizedBox(height: 8),
+          const SizedBox(height: 4),
           Text(
             'Agrega productos para comenzar',
             style: TextStyle(
-              fontSize: 14,
+              fontSize: 12,
               color: Colors.grey[500],
             ),
           ),
@@ -691,61 +740,98 @@ class _POSPageState extends State<POSPage> {
   }
 
   Widget _buildPaymentDialog() {
-    return AlertDialog(
-      title: const Text('Procesar Pago'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF9FAFB),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: const Color(0xFFE5E7EB)),
-            ),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+    return StatefulBuilder(
+      builder: (context, setDialogState) {
+        return AlertDialog(
+          title: const Text('Procesar Pago'),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF9FAFB),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE5E7EB)),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        'Total a Pagar',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        'S/ ${_total.toStringAsFixed(2)}',
+                        style: const TextStyle(
+                          fontSize: 32,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFF10B981),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 20),
+                // Campo opcional de nombre de cliente
+                TextField(
+                  controller: _customerNameController,
+                  decoration: InputDecoration(
+                    labelText: 'Nombre del Cliente (Opcional)',
+                    hintText: 'Ingrese el nombre del cliente',
+                    prefixIcon: const Icon(Icons.person_outline, color: Color(0xFF6B7280)),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFF2563EB), width: 2),
+                    ),
+                    filled: true,
+                    fillColor: Colors.white,
+                  ),
+                ),
+                const SizedBox(height: 20),
                 const Text(
-                  'Total a Pagar',
+                  'Método de Pago',
                   style: TextStyle(
-                    fontSize: 18,
+                    fontSize: 16,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
-                Text(
-                  'S/ ${_total.toStringAsFixed(2)}',
-                  style: const TextStyle(
-                    fontSize: 32,
-                    fontWeight: FontWeight.w700,
-                    color: Color(0xFF10B981),
-                  ),
-                ),
+                const SizedBox(height: 12),
+                _buildPaymentMethodSelector(),
               ],
             ),
           ),
-          const SizedBox(height: 20),
-          const Text(
-            'Método de Pago',
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w600,
+          actions: [
+            TextButton(
+              onPressed: () {
+                _customerNameController.clear();
+                Navigator.pop(context);
+              },
+              child: const Text('Cancelar'),
             ),
-          ),
-          const SizedBox(height: 12),
-          _buildPaymentMethodSelector(),
-        ],
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancelar'),
-        ),
-        ElevatedButton(
-          onPressed: () => _completeSale(),
-          child: const Text('Confirmar Pago'),
-        ),
-      ],
+            ElevatedButton(
+              onPressed: () => _completeSale(),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF10B981),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Confirmar Pago'),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -807,34 +893,84 @@ class _POSPageState extends State<POSPage> {
     );
   }
 
-  void _completeSale() {
+  void _completeSale() async {
     Navigator.pop(context);
     
-    // Mostrar éxito
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.check_circle, color: Colors.white),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Text(
-                'Venta procesada: S/ ${_total.toStringAsFixed(2)}',
-                style: const TextStyle(fontSize: 16),
-              ),
+    try {
+      final provider = Provider.of<AppProvider>(context, listen: false);
+      
+      // Preparar datos de la venta
+      final customerName = _customerNameController.text.trim();
+      
+      final saleData = {
+        'negocio_id': provider.currentBusinessId,
+        'cliente_id': _selectedCustomer,
+        'cliente_nombre': customerName.isNotEmpty ? customerName : null,
+        'productos': _cart.map((item) => {
+          'producto_id': item['id'],
+          'nombre': item['nombre'],
+          'cantidad': item['cantidad'] ?? 1,
+          'precio_unitario': item['precio'],
+          'subtotal': ((item['precio'] ?? 0.0) * (item['cantidad'] ?? 1)),
+        }).toList(),
+        'subtotal': _subtotal,
+        'impuestos': _igv,
+        'descuento': _descuento,
+        'total': _total,
+        'metodo_pago': _selectedPaymentMethod,
+        'estado': 'completada',
+      };
+
+      // Registrar venta en backend
+      await ApiService.createSale(saleData);
+      
+      // Mostrar éxito
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.check_circle, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text(
+                    'Venta procesada: S/ ${_total.toStringAsFixed(2)}',
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ),
+              ],
             ),
-          ],
-        ),
-        backgroundColor: const Color(0xFF10B981),
-        duration: const Duration(seconds: 3),
-      ),
-    );
-    
-    // Limpiar carrito
-    setState(() {
-      _cart.clear();
-      _calculateTotals();
-    });
+            backgroundColor: const Color(0xFF10B981),
+            duration: const Duration(seconds: 3),
+          ),
+        );
+      }
+      
+      // Limpiar carrito y campos
+      setState(() {
+        _cart.clear();
+        _customerNameController.clear();
+        _calculateTotals();
+      });
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text('Error al procesar venta: $e'),
+                ),
+              ],
+            ),
+            backgroundColor: const Color(0xFFEF4444),
+            duration: const Duration(seconds: 4),
+          ),
+        );
+      }
+    }
   }
 
   void _openQRScanner() {

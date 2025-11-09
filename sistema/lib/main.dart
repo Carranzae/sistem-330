@@ -32,6 +32,7 @@ class MyApp extends StatelessWidget {
       ],
       child: MaterialApp.router(
         title: 'Sistema Multi-Negocio',
+        debugShowCheckedModeBanner: false, // Ocultar banner DEBUG
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
             seedColor: const Color(0xFF2563EB),

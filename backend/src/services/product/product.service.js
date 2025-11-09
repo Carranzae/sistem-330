@@ -133,10 +133,112 @@ const deleteProduct = async (productId) => {
   }
 };
 
+// Ajustar stock de un producto (sumar o restar)
+const adjustStock = async (productId, quantity, operation = 'add') => {
+  try {
+    let sql;
+    
+    if (operation === 'add') {
+      // Sumar stock
+      sql = `UPDATE productos 
+             SET stock = stock + $1, updated_at = NOW() 
+             WHERE id = $2 
+             RETURNING *`;
+    } else if (operation === 'subtract') {
+      // Restar stock
+      sql = `UPDATE productos 
+             SET stock = GREATEST(stock - $1, 0), updated_at = NOW() 
+             WHERE id = $2 
+             RETURNING *`;
+    } else if (operation === 'set') {
+      // Establecer stock específico
+      sql = `UPDATE productos 
+             SET stock = $1, updated_at = NOW() 
+             WHERE id = $2 
+             RETURNING *`;
+    } else {
+      throw new Error('Operación no válida. Use: add, subtract o set');
+    }
+    
+    const result = await query(sql, [quantity, productId]);
+    
+    if (result.rows.length === 0) {
+      throw new Error('Producto no encontrado');
+    }
+    
+    logger.info('Stock ajustado', { productId, quantity, operation });
+    return result.rows[0];
+  } catch (error) {
+    logger.error('Error ajustando stock', { error: error.message, productId, quantity, operation });
+    throw error;
+  }
+};
+
+// Actualizar stock de múltiples productos (para ventas)
+const updateMultipleStocks = async (products) => {
+  try {
+    const updates = [];
+    
+    for (const product of products) {
+      const { producto_id, cantidad } = product;
+      
+      // Verificar que hay suficiente stock
+      const productData = await getProductById(producto_id);
+      if (!productData) {
+        throw new Error(`Producto ${producto_id} no encontrado`);
+      }
+      
+      if (productData.stock < cantidad) {
+        throw new Error(`Stock insuficiente para ${productData.nombre}. Disponible: ${productData.stock}, Requerido: ${cantidad}`);
+      }
+      
+      // Restar stock
+      await adjustStock(producto_id, cantidad, 'subtract');
+      
+      updates.push({
+        producto_id,
+        nombre: productData.nombre,
+        cantidad_anterior: productData.stock,
+        cantidad_actualizada: productData.stock - cantidad,
+      });
+    }
+    
+    logger.info('Stocks actualizados en múltiples productos', { count: updates.length });
+    return updates;
+  } catch (error) {
+    logger.error('Error actualizando stocks múltiples', { error: error.message });
+    throw error;
+  }
+};
+
+// Obtener productos con stock bajo
+const getProductsWithLowStock = async (businessId = null, threshold = 10) => {
+  try {
+    let sql = 'SELECT * FROM productos WHERE stock <= $1';
+    let params = [threshold];
+    
+    if (businessId) {
+      sql += ' AND negocio_id = $2';
+      params.push(businessId);
+    }
+    
+    sql += ' ORDER BY stock ASC';
+    
+    const result = await query(sql, params);
+    return result.rows;
+  } catch (error) {
+    logger.error('Error obteniendo productos con stock bajo', { error: error.message });
+    throw error;
+  }
+};
+
 module.exports = {
   getAllProducts,
   getProductById,
   createProduct,
   updateProduct,
   deleteProduct,
+  adjustStock,
+  updateMultipleStocks,
+  getProductsWithLowStock,
 };

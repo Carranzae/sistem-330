@@ -163,13 +163,11 @@ class ErrorHandler {
     return false; // No recuperable
   }
 
-  /// Log del error (para debugging)
+    /// Log del error (para debugging)
   static void logError(Failure failure, {StackTrace? stackTrace}) {
     // TODO: Integrar con un servicio de logging (Sentry, Firebase Crashlytics)
-    print('❌ Error: ${failure.message}');
-    if (stackTrace != null) {
-      print('Stack trace: $stackTrace');
-    }
+    // Los errores se manejan silenciosamente en producción
+    // Se mostrarán al usuario a través de la UI
   }
 }
 

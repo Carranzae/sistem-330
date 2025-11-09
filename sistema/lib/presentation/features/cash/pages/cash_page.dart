@@ -20,6 +20,16 @@ class _CashPageState extends State<CashPage> {
   double _totalOut = 0.00;
   double _difference = 0.00;
   final List<Map<String, dynamic>> _transactions = [];
+  final List<Map<String, dynamic>> _allTransactions = [];
+  
+  // Filtros
+  String? _filterType; // 'venta', 'egreso', null (todos)
+  String? _filterMethod; // 'Efectivo', 'Tarjeta', 'Yape', 'Plin', null (todos)
+  String _filterTimeRange = 'hoy'; // 'hoy', 'semana', 'mes', 'personalizado'
+  DateTime? _filterStartDate;
+  DateTime? _filterEndDate;
+  double? _filterMinAmount;
+  double? _filterMaxAmount;
 
   @override
   void initState() {
@@ -29,56 +39,132 @@ class _CashPageState extends State<CashPage> {
 
   void _loadTransactions() {
     // Simular transacciones del día
-    setState(() {
-      _transactions.addAll([
-        {
-          'id': '1',
-          'type': 'venta',
-          'description': 'Venta POS #001',
-          'amount': 85.50,
-          'method': 'Efectivo',
-          'time': '09:15',
-          'timestamp': DateTime.now().subtract(const Duration(hours: 3)),
-        },
-        {
-          'id': '2',
-          'type': 'venta',
-          'description': 'Venta POS #002',
-          'amount': 125.00,
-          'method': 'Tarjeta',
-          'time': '10:30',
-          'timestamp': DateTime.now().subtract(const Duration(hours: 2)),
-        },
-        {
-          'id': '3',
-          'type': 'egreso',
-          'description': 'Pago a proveedor',
-          'amount': 200.00,
-          'method': 'Efectivo',
-          'time': '11:00',
-          'timestamp': DateTime.now().subtract(const Duration(hours: 1, minutes: 30)),
-        },
-        {
-          'id': '4',
-          'type': 'venta',
-          'description': 'Venta POS #003',
-          'amount': 45.20,
-          'method': 'Yape',
-          'time': '11:45',
-          'timestamp': DateTime.now().subtract(const Duration(minutes: 45)),
-        },
-      ]);
+    final allTrans = [
+      {
+        'id': '1',
+        'type': 'venta',
+        'description': 'Venta POS #001',
+        'amount': 85.50,
+        'method': 'Efectivo',
+        'time': '09:15',
+        'timestamp': DateTime.now().subtract(const Duration(hours: 3)),
+      },
+      {
+        'id': '2',
+        'type': 'venta',
+        'description': 'Venta POS #002',
+        'amount': 125.00,
+        'method': 'Tarjeta',
+        'time': '10:30',
+        'timestamp': DateTime.now().subtract(const Duration(hours: 2)),
+      },
+      {
+        'id': '3',
+        'type': 'egreso',
+        'description': 'Pago a proveedor',
+        'amount': 200.00,
+        'method': 'Efectivo',
+        'time': '11:00',
+        'timestamp': DateTime.now().subtract(const Duration(hours: 1, minutes: 30)),
+      },
+      {
+        'id': '4',
+        'type': 'venta',
+        'description': 'Venta POS #003',
+        'amount': 45.20,
+        'method': 'Yape',
+        'time': '11:45',
+        'timestamp': DateTime.now().subtract(const Duration(minutes: 45)),
+      },
+      {
+        'id': '5',
+        'type': 'venta',
+        'description': 'Venta POS #004',
+        'amount': 180.00,
+        'method': 'Plin',
+        'time': '12:30',
+        'timestamp': DateTime.now().subtract(const Duration(minutes: 30)),
+      },
+      {
+        'id': '6',
+        'type': 'egreso',
+        'description': 'Compra de insumos',
+        'amount': 50.00,
+        'method': 'Efectivo',
+        'time': '13:00',
+        'timestamp': DateTime.now().subtract(const Duration(minutes: 15)),
+      },
+    ];
 
-      // Calcular totales
-      _totalIn = _transactions
-          .where((t) => t['type'] == 'venta')
-          .fold(0.0, (sum, t) => sum + (t['amount'] as num).toDouble());
-      _totalOut = _transactions
-          .where((t) => t['type'] == 'egreso')
-          .fold(0.0, (sum, t) => sum + (t['amount'] as num).toDouble());
-      _currentTotal = _initialAmount + _totalIn - _totalOut;
-      _difference = 0.00;
+    setState(() {
+      _allTransactions.clear();
+      _allTransactions.addAll(allTrans);
+      _applyFilters();
     });
+  }
+
+  void _applyFilters() {
+    var filtered = List<Map<String, dynamic>>.from(_allTransactions);
+
+    // Filtrar por tipo
+    if (_filterType != null) {
+      filtered = filtered.where((t) => t['type'] == _filterType).toList();
+    }
+
+    // Filtrar por método de pago
+    if (_filterMethod != null) {
+      filtered = filtered.where((t) => t['method'] == _filterMethod).toList();
+    }
+
+    // Filtrar por rango de tiempo
+    final now = DateTime.now();
+    DateTime? startDate;
+    DateTime? endDate = now;
+
+    switch (_filterTimeRange) {
+      case 'hoy':
+        startDate = DateTime(now.year, now.month, now.day);
+        break;
+      case 'semana':
+        startDate = now.subtract(Duration(days: now.weekday - 1));
+        startDate = DateTime(startDate.year, startDate.month, startDate.day);
+        break;
+      case 'mes':
+        startDate = DateTime(now.year, now.month, 1);
+        break;
+      case 'personalizado':
+        startDate = _filterStartDate;
+        endDate = _filterEndDate ?? now;
+        break;
+    }
+
+    if (startDate != null) {
+      filtered = filtered.where((t) {
+        final timestamp = t['timestamp'] as DateTime;
+        return timestamp.isAfter(startDate!.subtract(const Duration(seconds: 1))) &&
+               timestamp.isBefore(endDate!.add(const Duration(days: 1)));
+      }).toList();
+    }
+
+    // Filtrar por rango de monto
+    if (_filterMinAmount != null) {
+      filtered = filtered.where((t) => (t['amount'] as num).toDouble() >= _filterMinAmount!).toList();
+    }
+    if (_filterMaxAmount != null) {
+      filtered = filtered.where((t) => (t['amount'] as num).toDouble() <= _filterMaxAmount!).toList();
+    }
+
+    // Actualizar lista y recalcular totales
+    _transactions.clear();
+    _transactions.addAll(filtered);
+
+    _totalIn = _allTransactions
+        .where((t) => t['type'] == 'venta')
+        .fold(0.0, (sum, t) => sum + (t['amount'] as num).toDouble());
+    _totalOut = _allTransactions
+        .where((t) => t['type'] == 'egreso')
+        .fold(0.0, (sum, t) => sum + (t['amount'] as num).toDouble());
+    _currentTotal = _initialAmount + _totalIn - _totalOut;
   }
 
   @override
@@ -328,21 +414,68 @@ class _CashPageState extends State<CashPage> {
                 // Transacciones del día
                 Row(
                   children: [
-                    const Expanded(
-                      child: Text(
-                        'Transacciones del Día',
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w700,
-                          color: Color(0xFF1F2937),
-                        ),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Transacciones del Día',
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.w700,
+                              color: Color(0xFF1F2937),
+                            ),
+                          ),
+                          if (_hasActiveFilters()) ...[
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: const Color(0xFF2563EB).withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(12),
+                                    border: Border.all(color: const Color(0xFF2563EB).withOpacity(0.3)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.filter_alt, size: 14, color: Color(0xFF2563EB)),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        '${_transactions.length} de ${_allTransactions.length}',
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w600,
+                                          color: Color(0xFF2563EB),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ],
                       ),
                     ),
                     TextButton.icon(
-                      onPressed: () {},
+                      onPressed: _showFilterDialog,
                       icon: const Icon(Icons.filter_list, size: 18),
                       label: const Text('Filtrar'),
+                      style: TextButton.styleFrom(
+                        foregroundColor: _hasActiveFilters() ? const Color(0xFF2563EB) : null,
+                      ),
                     ),
+                    if (_hasActiveFilters())
+                      TextButton.icon(
+                        onPressed: _clearFilters,
+                        icon: const Icon(Icons.clear, size: 18),
+                        label: const Text('Limpiar'),
+                        style: TextButton.styleFrom(
+                          foregroundColor: Colors.red,
+                        ),
+                      ),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -797,7 +930,7 @@ class _CashPageState extends State<CashPage> {
               }
 
               setState(() {
-                _transactions.add({
+                final newTransaction = {
                   'id': DateTime.now().toString(),
                   'type': 'egreso',
                   'description': description,
@@ -805,9 +938,9 @@ class _CashPageState extends State<CashPage> {
                   'method': 'Efectivo',
                   'time': DateFormat('HH:mm').format(DateTime.now()),
                   'timestamp': DateTime.now(),
-                });
-                _totalOut += amount;
-                _currentTotal -= amount;
+                };
+                _allTransactions.add(newTransaction);
+                _applyFilters();
               });
 
               Navigator.pop(context);
@@ -821,6 +954,422 @@ class _CashPageState extends State<CashPage> {
             child: const Text('Registrar'),
           ),
         ],
+      ),
+    );
+  }
+
+  bool _hasActiveFilters() {
+    return _filterType != null ||
+           _filterMethod != null ||
+           _filterTimeRange != 'hoy' ||
+           _filterMinAmount != null ||
+           _filterMaxAmount != null;
+  }
+
+  void _clearFilters() {
+    setState(() {
+      _filterType = null;
+      _filterMethod = null;
+      _filterTimeRange = 'hoy';
+      _filterStartDate = null;
+      _filterEndDate = null;
+      _filterMinAmount = null;
+      _filterMaxAmount = null;
+      _applyFilters();
+    });
+  }
+
+  void _showFilterDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => _buildFilterDialog(),
+    );
+  }
+
+  Widget _buildFilterDialog() {
+    return StatefulBuilder(
+      builder: (context, setDialogState) {
+        return AlertDialog(
+          title: const Row(
+            children: [
+              Icon(Icons.filter_list, color: Color(0xFF2563EB)),
+              SizedBox(width: 8),
+              Text('Filtrar Transacciones'),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Filtro por tipo
+                const Text(
+                  'Tipo de Transacción',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1F2937),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    _buildFilterChip(
+                      label: 'Todas',
+                      selected: _filterType == null,
+                      onSelected: (selected) {
+                        setDialogState(() {
+                          _filterType = null;
+                        });
+                      },
+                    ),
+                    _buildFilterChip(
+                      label: 'Ventas',
+                      selected: _filterType == 'venta',
+                      onSelected: (selected) {
+                        setDialogState(() {
+                          _filterType = selected ? 'venta' : null;
+                        });
+                      },
+                    ),
+                    _buildFilterChip(
+                      label: 'Egresos',
+                      selected: _filterType == 'egreso',
+                      onSelected: (selected) {
+                        setDialogState(() {
+                          _filterType = selected ? 'egreso' : null;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                
+                // Filtro por método de pago
+                const Text(
+                  'Método de Pago',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1F2937),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    _buildFilterChip(
+                      label: 'Todos',
+                      selected: _filterMethod == null,
+                      onSelected: (selected) {
+                        setDialogState(() {
+                          _filterMethod = null;
+                        });
+                      },
+                    ),
+                    _buildFilterChip(
+                      label: 'Efectivo',
+                      selected: _filterMethod == 'Efectivo',
+                      onSelected: (selected) {
+                        setDialogState(() {
+                          _filterMethod = selected ? 'Efectivo' : null;
+                        });
+                      },
+                    ),
+                    _buildFilterChip(
+                      label: 'Tarjeta',
+                      selected: _filterMethod == 'Tarjeta',
+                      onSelected: (selected) {
+                        setDialogState(() {
+                          _filterMethod = selected ? 'Tarjeta' : null;
+                        });
+                      },
+                    ),
+                    _buildFilterChip(
+                      label: 'Yape',
+                      selected: _filterMethod == 'Yape',
+                      onSelected: (selected) {
+                        setDialogState(() {
+                          _filterMethod = selected ? 'Yape' : null;
+                        });
+                      },
+                    ),
+                    _buildFilterChip(
+                      label: 'Plin',
+                      selected: _filterMethod == 'Plin',
+                      onSelected: (selected) {
+                        setDialogState(() {
+                          _filterMethod = selected ? 'Plin' : null;
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 20),
+                
+                // Filtro por rango de tiempo
+                const Text(
+                  'Rango de Tiempo',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1F2937),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Wrap(
+                  spacing: 8,
+                  children: [
+                    _buildFilterChip(
+                      label: 'Hoy',
+                      selected: _filterTimeRange == 'hoy',
+                      onSelected: (selected) {
+                        setDialogState(() {
+                          _filterTimeRange = 'hoy';
+                          _filterStartDate = null;
+                          _filterEndDate = null;
+                        });
+                      },
+                    ),
+                    _buildFilterChip(
+                      label: 'Esta Semana',
+                      selected: _filterTimeRange == 'semana',
+                      onSelected: (selected) {
+                        setDialogState(() {
+                          _filterTimeRange = 'semana';
+                          _filterStartDate = null;
+                          _filterEndDate = null;
+                        });
+                      },
+                    ),
+                    _buildFilterChip(
+                      label: 'Este Mes',
+                      selected: _filterTimeRange == 'mes',
+                      onSelected: (selected) {
+                        setDialogState(() {
+                          _filterTimeRange = 'mes';
+                          _filterStartDate = null;
+                          _filterEndDate = null;
+                        });
+                      },
+                    ),
+                    _buildFilterChip(
+                      label: 'Personalizado',
+                      selected: _filterTimeRange == 'personalizado',
+                      onSelected: (selected) {
+                        setDialogState(() {
+                          _filterTimeRange = selected ? 'personalizado' : 'hoy';
+                        });
+                      },
+                    ),
+                  ],
+                ),
+                
+                // Fechas personalizadas
+                if (_filterTimeRange == 'personalizado') ...[
+                  const SizedBox(height: 16),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: InkWell(
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: _filterStartDate ?? DateTime.now(),
+                              firstDate: DateTime(2020),
+                              lastDate: DateTime.now(),
+                            );
+                            if (picked != null) {
+                              setDialogState(() {
+                                _filterStartDate = picked;
+                              });
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey[300]!),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.calendar_today, size: 18),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _filterStartDate != null
+                                      ? DateFormat('dd/MM/yyyy').format(_filterStartDate!)
+                                      : 'Desde',
+                                  style: TextStyle(
+                                    color: _filterStartDate != null
+                                        ? Colors.black
+                                        : Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      const Text('a'),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: InkWell(
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: context,
+                              initialDate: _filterEndDate ?? DateTime.now(),
+                              firstDate: _filterStartDate ?? DateTime(2020),
+                              lastDate: DateTime.now(),
+                            );
+                            if (picked != null) {
+                              setDialogState(() {
+                                _filterEndDate = picked;
+                              });
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.all(12),
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey[300]!),
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: Row(
+                              children: [
+                                const Icon(Icons.calendar_today, size: 18),
+                                const SizedBox(width: 8),
+                                Text(
+                                  _filterEndDate != null
+                                      ? DateFormat('dd/MM/yyyy').format(_filterEndDate!)
+                                      : 'Hasta',
+                                  style: TextStyle(
+                                    color: _filterEndDate != null
+                                        ? Colors.black
+                                        : Colors.grey[600],
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+                
+                const SizedBox(height: 20),
+                
+                // Filtro por rango de monto
+                const Text(
+                  'Rango de Monto (Opcional)',
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: Color(0xFF1F2937),
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          labelText: 'Monto Mínimo',
+                          prefixText: 'S/ ',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          isDense: true,
+                        ),
+                        onChanged: (value) {
+                          setDialogState(() {
+                            _filterMinAmount = double.tryParse(value);
+                          });
+                        },
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    const Text('a'),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: TextField(
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        decoration: InputDecoration(
+                          labelText: 'Monto Máximo',
+                          prefixText: 'S/ ',
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          isDense: true,
+                        ),
+                        onChanged: (value) {
+                          setDialogState(() {
+                            _filterMaxAmount = double.tryParse(value);
+                          });
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                _clearFilters();
+                Navigator.pop(context);
+              },
+              child: const Text('Limpiar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  _applyFilters();
+                });
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text(
+                      'Filtros aplicados: ${_transactions.length} transacciones encontradas',
+                    ),
+                    backgroundColor: Colors.green,
+                    duration: const Duration(seconds: 2),
+                  ),
+                );
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF2563EB),
+                foregroundColor: Colors.white,
+              ),
+              child: const Text('Aplicar Filtros'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildFilterChip({
+    required String label,
+    required bool selected,
+    required Function(bool) onSelected,
+  }) {
+    return FilterChip(
+      label: Text(label),
+      selected: selected,
+      onSelected: onSelected,
+      selectedColor: const Color(0xFF2563EB).withOpacity(0.2),
+      checkmarkColor: const Color(0xFF2563EB),
+      labelStyle: TextStyle(
+        color: selected ? const Color(0xFF2563EB) : Colors.grey[700],
+        fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
       ),
     );
   }

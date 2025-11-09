@@ -52,6 +52,7 @@ app.use('/api/businesses', require('./routes/businesses/businesses.routes'));
 app.use('/api/products', require('./routes/products/products.routes'));
 app.use('/api/sales', require('./routes/sales/sales.routes'));
 app.use('/api/clients', require('./routes/clients/clients.routes'));
+app.use('/api/dashboard', require('./routes/dashboard/dashboard.routes'));
 
 // TODO: Agregar más rutas
 // app.use('/api/security', require('./routes/security/security.routes'));

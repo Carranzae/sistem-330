@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
+import '../../core/services/api_service.dart';
+import '../../app/providers/app_provider.dart';
 
 /// Layout principal con sidebar empresarial y header fijo
 /// Muestra diferentes módulos según la categoría del negocio
@@ -21,6 +25,11 @@ class MainLayout extends StatefulWidget {
 
 class _MainLayoutState extends State<MainLayout> {
   int _selectedIndex = 0;
+  
+  // Estado de notificaciones
+  List<Map<String, dynamic>> _notifications = [];
+  int _unreadCount = 0;
+  bool _isLoadingNotifications = false;
 
   // Módulos base comunes para todos los negocios
   List<Map<String, dynamic>> get _baseModules => [
@@ -208,6 +217,116 @@ class _MainLayoutState extends State<MainLayout> {
         return const Color(0xFF9333EA);
       default:
         return const Color(0xFF64748B);
+    }
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotifications();
+    // Recargar notificaciones cada 30 segundos
+    Future.delayed(const Duration(seconds: 30), () {
+      if (mounted) {
+        _loadNotifications();
+      }
+    });
+  }
+
+  Future<void> _loadNotifications() async {
+    if (_isLoadingNotifications) return;
+    
+    setState(() {
+      _isLoadingNotifications = true;
+    });
+
+    try {
+      // Obtener productos con stock bajo
+      final lowStockProducts = await ApiService.getLowStockProducts();
+      
+      // Obtener todos los productos para verificar vencimientos
+      final allProducts = await ApiService.getProducts();
+      final now = DateTime.now();
+      
+      // Obtener clientes para verificar morosos
+      final clients = await ApiService.getClients();
+      
+      final notifications = <Map<String, dynamic>>[];
+      
+      // Notificaciones de stock bajo
+      for (var product in lowStockProducts) {
+        notifications.add({
+          'id': 'low_stock_${product['id']}',
+          'type': 'low_stock',
+          'title': 'Stock Bajo',
+          'message': '${product['nombre']} tiene solo ${product['stock']} unidades',
+          'priority': 'high',
+          'timestamp': DateTime.now(),
+          'read': false,
+          'data': product,
+        });
+      }
+      
+      // Notificaciones de productos por vencer (30 días)
+      for (var product in allProducts) {
+        if (product['fecha_vencimiento'] != null) {
+          try {
+            final expirationDate = DateTime.parse(product['fecha_vencimiento']);
+            final daysUntilExpiration = expirationDate.difference(now).inDays;
+            
+            if (daysUntilExpiration >= 0 && daysUntilExpiration <= 30) {
+              notifications.add({
+                'id': 'expiring_${product['id']}',
+                'type': 'expiring',
+                'title': 'Producto por Vencer',
+                'message': '${product['nombre']} vence en $daysUntilExpiration días',
+                'priority': daysUntilExpiration <= 7 ? 'high' : 'medium',
+                'timestamp': DateTime.now(),
+                'read': false,
+                'data': product,
+              });
+            }
+          } catch (e) {
+            // Ignorar productos con fecha inválida
+          }
+        }
+      }
+      
+      // Notificaciones de clientes morosos
+      for (var client in clients) {
+        if (client['credito_pendiente'] != null && 
+            (client['credito_pendiente'] as num) > 0) {
+          final pendingCredit = client['credito_pendiente'] as num;
+          notifications.add({
+            'id': 'delinquent_${client['id']}',
+            'type': 'delinquent',
+            'title': 'Cliente Moroso',
+            'message': '${client['nombre']} ${client['apellido'] ?? ''} tiene S/ ${pendingCredit.toStringAsFixed(2)} pendiente',
+            'priority': 'high',
+            'timestamp': DateTime.now(),
+            'read': false,
+            'data': client,
+          });
+        }
+      }
+      
+      // Ordenar por prioridad y fecha
+      notifications.sort((a, b) {
+        final priorityOrder = {'high': 0, 'medium': 1, 'low': 2};
+        final priorityDiff = (priorityOrder[a['priority']] ?? 2) - 
+                            (priorityOrder[b['priority']] ?? 2);
+        if (priorityDiff != 0) return priorityDiff;
+        return (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime);
+      });
+      
+      setState(() {
+        _notifications = notifications;
+        _unreadCount = notifications.where((n) => !n['read']).length;
+        _isLoadingNotifications = false;
+      });
+    } catch (e) {
+      setState(() {
+        _isLoadingNotifications = false;
+      });
     }
   }
 
@@ -449,15 +568,16 @@ class _MainLayoutState extends State<MainLayout> {
                 _buildFooterMenuItem(
                   icon: Icons.settings,
                   label: 'Configuración',
-                  onTap: () {},
+                  onTap: () {
+                    if (isMobile) Navigator.pop(context);
+                    context.go('/settings');
+                  },
                 ),
                 const SizedBox(height: 8),
                 _buildFooterMenuItem(
                   icon: Icons.logout,
                   label: 'Salir',
-                  onTap: () {
-                    // Lógica de logout
-                  },
+                  onTap: () => _showLogoutDialog(),
                 ),
               ],
             ),
@@ -620,15 +740,16 @@ class _MainLayoutState extends State<MainLayout> {
                   _buildFooterMenuItem(
                     icon: Icons.settings,
                     label: 'Configuración',
-                    onTap: () {},
+                    onTap: () {
+                      if (isMobile) Navigator.pop(context);
+                      context.go('/settings');
+                    },
                   ),
                   const SizedBox(height: 8),
                   _buildFooterMenuItem(
                     icon: Icons.logout,
                     label: 'Salir',
-                    onTap: () {
-                      // Lógica de logout
-                    },
+                    onTap: () => _showLogoutDialog(),
                   ),
                 ],
               ),
@@ -752,9 +873,38 @@ class _MainLayoutState extends State<MainLayout> {
       ),
       iconTheme: const IconThemeData(color: Color(0xFF1F2937)),
       actions: [
-        IconButton(
-          icon: const Icon(Icons.notifications_outlined),
-          onPressed: () {},
+        Stack(
+          children: [
+            IconButton(
+              icon: const Icon(Icons.notifications_outlined),
+              onPressed: _showNotificationsPanel,
+            ),
+            if (_unreadCount > 0)
+              Positioned(
+                right: 8,
+                top: 8,
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: const BoxDecoration(
+                    color: Color(0xFFEF4444),
+                    shape: BoxShape.circle,
+                  ),
+                  constraints: const BoxConstraints(
+                    minWidth: 18,
+                    minHeight: 18,
+                  ),
+                  child: Text(
+                    _unreadCount > 99 ? '99+' : '$_unreadCount',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.w700,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ),
+              ),
+          ],
         ),
         const SizedBox(width: 8),
       ],
@@ -816,16 +966,52 @@ class _MainLayoutState extends State<MainLayout> {
             ),
           ),
           // Notificaciones y perfil
-          Container(
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              color: const Color(0xFFF3F4F6),
+          Material(
+            color: Colors.transparent,
+            child: InkWell(
+              onTap: _showNotificationsPanel,
               borderRadius: BorderRadius.circular(12),
-            ),
-            child: const Icon(
-              Icons.notifications_outlined,
-              color: Color(0xFF1F2937),
-              size: 24,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF3F4F6),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Stack(
+                  children: [
+                    const Icon(
+                      Icons.notifications_outlined,
+                      color: Color(0xFF1F2937),
+                      size: 24,
+                    ),
+                    if (_unreadCount > 0)
+                      Positioned(
+                        right: 0,
+                        top: 0,
+                        child: Container(
+                          padding: const EdgeInsets.all(3),
+                          decoration: const BoxDecoration(
+                            color: Color(0xFFEF4444),
+                            shape: BoxShape.circle,
+                          ),
+                          constraints: const BoxConstraints(
+                            minWidth: 16,
+                            minHeight: 16,
+                          ),
+                          child: Text(
+                            _unreadCount > 99 ? '99+' : '$_unreadCount',
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontSize: 9,
+                              fontWeight: FontWeight.w700,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
             ),
           ),
           const SizedBox(width: 12),
@@ -954,6 +1140,418 @@ class _MainLayoutState extends State<MainLayout> {
       default:
         return 'Otro / General';
     }
+  }
+
+  void _showNotificationsPanel() {
+    final isMobile = MediaQuery.of(context).size.width < 600;
+    
+    if (isMobile) {
+      // Bottom sheet para móvil
+      showModalBottomSheet(
+        context: context,
+        isScrollControlled: true,
+        backgroundColor: Colors.transparent,
+        builder: (context) => _buildNotificationsBottomSheet(),
+      );
+    } else {
+      // Popup para desktop
+      showDialog(
+        context: context,
+        builder: (context) => _buildNotificationsDialog(),
+      );
+    }
+  }
+
+  Widget _buildNotificationsBottomSheet() {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: DraggableScrollableSheet(
+        initialChildSize: 0.7,
+        minChildSize: 0.5,
+        maxChildSize: 0.95,
+        expand: false,
+        builder: (context, scrollController) {
+          return Column(
+            children: [
+              // Handle
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Center(
+                  child: Container(
+                    width: 40,
+                    height: 4,
+                    decoration: BoxDecoration(
+                      color: Colors.grey[300],
+                      borderRadius: BorderRadius.circular(2),
+                    ),
+                  ),
+                ),
+              ),
+              // Header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 24),
+                child: Row(
+                  children: [
+                    const Text(
+                      'Notificaciones',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const Spacer(),
+                    if (_unreadCount > 0)
+                      TextButton(
+                        onPressed: _markAllAsRead,
+                        child: const Text('Marcar todas como leídas'),
+                      ),
+                    TextButton(
+                      onPressed: () {
+                        context.go('/notifications');
+                        Navigator.pop(context);
+                      },
+                      child: const Text('Ver todas'),
+                    ),
+                  ],
+                ),
+              ),
+              const Divider(),
+              // Lista de notificaciones
+              Expanded(
+                child: _buildNotificationsList(scrollController),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildNotificationsDialog() {
+    return Dialog(
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      child: Container(
+        width: 500,
+        height: 600,
+        child: Column(
+          children: [
+            // Header
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Row(
+                children: [
+                  const Text(
+                    'Notificaciones',
+                    style: TextStyle(
+                      fontSize: 24,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (_unreadCount > 0)
+                    TextButton(
+                      onPressed: _markAllAsRead,
+                      child: const Text('Marcar todas como leídas'),
+                    ),
+                  TextButton(
+                    onPressed: () {
+                      context.go('/notifications');
+                      Navigator.pop(context);
+                    },
+                    child: const Text('Ver todas'),
+                  ),
+                ],
+              ),
+            ),
+            const Divider(),
+            // Lista de notificaciones
+            Expanded(
+              child: _buildNotificationsList(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNotificationsList([ScrollController? scrollController]) {
+    if (_isLoadingNotifications) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    if (_notifications.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.notifications_none,
+              size: 64,
+              color: Colors.grey[400],
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'No hay notificaciones',
+              style: TextStyle(
+                fontSize: 16,
+                color: Colors.grey[600],
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+
+    return ListView.builder(
+      controller: scrollController,
+      padding: const EdgeInsets.all(8),
+      itemCount: _notifications.length > 10 ? 10 : _notifications.length,
+      itemBuilder: (context, index) {
+        final notification = _notifications[index];
+        return _buildNotificationItem(notification);
+      },
+    );
+  }
+
+  Widget _buildNotificationItem(Map<String, dynamic> notification) {
+    final isRead = notification['read'] as bool;
+    final type = notification['type'] as String;
+    final priority = notification['priority'] as String;
+    
+    Color priorityColor;
+    IconData typeIcon;
+    
+    switch (type) {
+      case 'low_stock':
+        priorityColor = const Color(0xFFF59E0B);
+        typeIcon = Icons.inventory_2;
+        break;
+      case 'expiring':
+        priorityColor = const Color(0xFFEF4444);
+        typeIcon = Icons.calendar_today;
+        break;
+      case 'delinquent':
+        priorityColor = const Color(0xFFDC2626);
+        typeIcon = Icons.warning;
+        break;
+      default:
+        priorityColor = const Color(0xFF6B7280);
+        typeIcon = Icons.info;
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _handleNotificationTap(notification),
+        child: Container(
+          margin: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: isRead ? Colors.white : priorityColor.withOpacity(0.05),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: isRead ? Colors.grey[200]! : priorityColor.withOpacity(0.2),
+              width: isRead ? 1 : 2,
+            ),
+          ),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  color: priorityColor.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(typeIcon, color: priorityColor, size: 24),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            notification['title'] as String,
+                            style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: isRead ? FontWeight.w500 : FontWeight.w700,
+                              color: const Color(0xFF1F2937),
+                            ),
+                          ),
+                        ),
+                        if (!isRead)
+                          Container(
+                            width: 8,
+                            height: 8,
+                            decoration: BoxDecoration(
+                              color: priorityColor,
+                              shape: BoxShape.circle,
+                            ),
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      notification['message'] as String,
+                      style: TextStyle(
+                        fontSize: 13,
+                        color: Colors.grey[600],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      _formatTimestamp(notification['timestamp'] as DateTime),
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Colors.grey[500],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  String _formatTimestamp(DateTime timestamp) {
+    final now = DateTime.now();
+    final difference = now.difference(timestamp);
+
+    if (difference.inMinutes < 1) {
+      return 'Hace un momento';
+    } else if (difference.inMinutes < 60) {
+      return 'Hace ${difference.inMinutes} minutos';
+    } else if (difference.inHours < 24) {
+      return 'Hace ${difference.inHours} horas';
+    } else if (difference.inDays < 7) {
+      return 'Hace ${difference.inDays} días';
+    } else {
+      return DateFormat('dd/MM/yyyy').format(timestamp);
+    }
+  }
+
+  void _handleNotificationTap(Map<String, dynamic> notification) {
+    // Marcar como leída
+    setState(() {
+      notification['read'] = true;
+      _unreadCount = _notifications.where((n) => !n['read']).length;
+    });
+
+    final type = notification['type'] as String;
+    final data = notification['data'] as Map<String, dynamic>;
+
+    // Navegar según el tipo de notificación
+    switch (type) {
+      case 'low_stock':
+      case 'expiring':
+        context.go('/inventory');
+        break;
+      case 'delinquent':
+        context.go('/clients');
+        break;
+    }
+
+    // Cerrar el panel si está abierto
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
+  }
+
+  void _markAllAsRead() {
+    setState(() {
+      for (var notification in _notifications) {
+        notification['read'] = true;
+      }
+      _unreadCount = 0;
+    });
+  }
+
+  void _showLogoutDialog() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16),
+        ),
+        title: const Row(
+          children: [
+            Icon(Icons.logout, color: Color(0xFFEF4444)),
+            SizedBox(width: 12),
+            Text('Confirmar Salida'),
+          ],
+        ),
+        content: const Text(
+          '¿Estás seguro de que deseas salir de la sesión?',
+          style: TextStyle(fontSize: 16),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text(
+              'Cancelar',
+              style: TextStyle(color: Color(0xFF6B7280)),
+            ),
+          ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _performLogout();
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFEF4444),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(8),
+              ),
+            ),
+            child: const Text('Salir'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _performLogout() {
+    // Cerrar drawer si está abierto (móvil)
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
+    }
+
+    // Limpiar estado de la aplicación
+    final appProvider = Provider.of<AppProvider>(context, listen: false);
+    appProvider.clearBusiness();
+    appProvider.setBusinessConfigurations({});
+    appProvider.clearError();
+
+    // Navegar a la pantalla de login
+    context.go('/');
+    
+    // Mostrar mensaje de confirmación
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.check_circle, color: Colors.white),
+            SizedBox(width: 12),
+            Expanded(
+              child: Text('Sesión cerrada correctamente'),
+            ),
+          ],
+        ),
+        backgroundColor: Color(0xFF10B981),
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 }
 

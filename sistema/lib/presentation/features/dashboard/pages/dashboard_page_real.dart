@@ -1,19 +1,18 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
 import '../../../../app/providers/app_provider.dart';
 import '../../../../shared/layouts/main_layout.dart';
 import '../../../../core/services/api_service.dart';
 
-class DashboardPage extends StatefulWidget {
-  const DashboardPage({super.key});
+class DashboardPageReal extends StatefulWidget {
+  const DashboardPageReal({super.key});
 
   @override
-  State<DashboardPage> createState() => _DashboardPageState();
+  State<DashboardPageReal> createState() => _DashboardPageRealState();
 }
 
-class _DashboardPageState extends State<DashboardPage> {
+class _DashboardPageRealState extends State<DashboardPageReal> {
   Map<String, dynamic>? _stats;
   List<dynamic> _alerts = [];
   bool _isLoading = true;
@@ -77,18 +76,13 @@ class _DashboardPageState extends State<DashboardPage> {
         _alerts = [];
       });
       
-      // Show snackbar after the widget is built
       if (mounted) {
-        SchedulerBinding.instance.addPostFrameCallback((_) {
-          if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('Usando datos de ejemplo: $e'),
-                backgroundColor: Colors.orange,
-              ),
-            );
-          }
-        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Usando datos de ejemplo: $e'),
+            backgroundColor: Colors.orange,
+          ),
+        );
       }
     }
   }
@@ -106,7 +100,7 @@ class _DashboardPageState extends State<DashboardPage> {
         return MainLayout(
           businessCategory: provider.currentBusinessCategory,
           businessName: provider.currentBusinessName,
-          child: _DashboardContent(
+          child: _DashboardContentReal(
             stats: _stats,
             alerts: _alerts,
             isLoading: _isLoading,
@@ -119,14 +113,14 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 }
 
-class _DashboardContent extends StatelessWidget {
+class _DashboardContentReal extends StatelessWidget {
   final Map<String, dynamic>? stats;
   final List<dynamic> alerts;
   final bool isLoading;
   final String? error;
   final VoidCallback onRefresh;
 
-  const _DashboardContent({
+  const _DashboardContentReal({
     required this.stats,
     required this.alerts,
     required this.isLoading,
@@ -202,18 +196,6 @@ class _DashboardContent extends StatelessWidget {
 
                     SizedBox(height: spacing),
                     _buildQuickActions(businessCategory),
-                    SizedBox(height: spacing),
-
-                    // Comparación Hoy vs Ayer
-                    _buildTodayVsYesterdaySection(stats),
-                    SizedBox(height: spacing),
-
-                    // Tendencia de Ventas (7 días)
-                    _buildSalesTrendSection(stats),
-                    SizedBox(height: spacing),
-
-                    // Productos Críticos
-                    _buildCriticalProductsSection(stats),
                     SizedBox(height: spacing),
 
                     // Top productos
@@ -676,351 +658,6 @@ class _DashboardContent extends StatelessWidget {
       ],
     );
   }
-
-  Widget _buildTodayVsYesterdaySection(Map<String, dynamic>? data) {
-    if (data == null) return const SizedBox.shrink();
-    
-    final sales = data['sales'] ?? {};
-    final today = sales['today'] ?? {};
-    final yesterday = sales['yesterday'] ?? {};
-    
-    final todayAmount = today['amount']?.toDouble() ?? 0.0;
-    final yesterdayAmount = yesterday['amount']?.toDouble() ?? 0.0;
-    final todayCount = today['count'] ?? 0;
-    final yesterdayCount = yesterday['count'] ?? 0;
-    
-    final difference = todayAmount - yesterdayAmount;
-    final differencePercent = yesterdayAmount > 0 ? ((difference / yesterdayAmount) * 100) : 0.0;
-    
-    final isPositive = difference >= 0;
-    
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Comparación Hoy vs Ayer',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF1F2937),
-          ),
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildComparisonCard(
-                      'Hoy',
-                      'S/ ${todayAmount.toStringAsFixed(2)}',
-                      todayCount,
-                      Icons.today,
-                      const Color(0xFF2563EB),
-                    ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildComparisonCard(
-                      'Ayer',
-                      'S/ ${yesterdayAmount.toStringAsFixed(2)}',
-                      yesterdayCount,
-                      Icons.calendar_today,
-                      const Color(0xFF6B7280),
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 16),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: isPositive ? const Color(0xFF10B981).withOpacity(0.1) : const Color(0xFFEF4444).withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(
-                      isPositive ? Icons.trending_up : Icons.trending_down,
-                      color: isPositive ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      '${isPositive ? '+' : ''}S/ ${difference.abs().toStringAsFixed(2)} (${differencePercent.abs().toStringAsFixed(1)}%)',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: isPositive ? const Color(0xFF10B981) : const Color(0xFFEF4444),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildComparisonCard(String label, String amount, int count, IconData icon, Color color) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
-      ),
-      child: Column(
-        children: [
-          Icon(icon, color: color, size: 32),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              color: color,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            amount,
-            style: TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '$count ventas',
-            style: TextStyle(
-              fontSize: 11,
-              color: color.withOpacity(0.7),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSalesTrendSection(Map<String, dynamic>? data) {
-    // Generar datos simulados para la tendencia de 7 días
-    final trendData = List.generate(7, (index) {
-      final day = DateTime.now().subtract(Duration(days: 6 - index));
-      return {
-        'day': day,
-        'sales': 500.0 + (index * 50.0) + (index % 2 == 0 ? 100.0 : 0.0),
-      };
-    });
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Tendencia de Ventas (7 días)',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF1F2937),
-          ),
-        ),
-        const SizedBox(height: 16),
-        Container(
-          padding: const EdgeInsets.all(20),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(16),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.05),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Column(
-            children: [
-              SizedBox(
-                height: 150,
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: trendData.map((day) {
-                    final maxSales = trendData.map((d) => d['sales'] as double).reduce((a, b) => a > b ? a : b);
-                    final height = (day['sales'] as double) / maxSales;
-                    
-                    return Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            Text(
-                              'S/ ${(day['sales'] as double).toStringAsFixed(0)}',
-                              style: const TextStyle(
-                                fontSize: 10,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Expanded(
-                              child: Container(
-                                decoration: BoxDecoration(
-                                  gradient: LinearGradient(
-                                    begin: Alignment.bottomCenter,
-                                    end: Alignment.topCenter,
-                                    colors: [
-                                      const Color(0xFF2563EB),
-                                      const Color(0xFF3B82F6),
-                                    ],
-                                  ),
-                                  borderRadius: const BorderRadius.vertical(
-                                    top: Radius.circular(8),
-                                  ),
-                                ),
-                                height: 150 * height,
-                                width: double.infinity,
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              _getDayName(day['day'] as DateTime),
-                              style: const TextStyle(
-                                fontSize: 10,
-                                color: Color(0xFF6B7280),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  String _getDayName(DateTime date) {
-    const days = ['L', 'M', 'X', 'J', 'V', 'S', 'D'];
-    return days[date.weekday - 1];
-  }
-
-  Widget _buildCriticalProductsSection(Map<String, dynamic>? data) {
-    if (data == null) return const SizedBox.shrink();
-    
-    final inventory = data['inventory'] ?? {};
-    final lowStock = inventory['lowStock'] ?? 0;
-    final outOfStock = inventory['outOfStock'] ?? 0;
-    
-    if (lowStock == 0 && outOfStock == 0) {
-      return const SizedBox.shrink();
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          'Alertas de Inventario',
-          style: TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.w600,
-            color: Color(0xFF1F2937),
-          ),
-        ),
-        const SizedBox(height: 16),
-        Row(
-          children: [
-            if (lowStock > 0)
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.shade50,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.orange.shade200),
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(Icons.warning, color: Colors.orange.shade700, size: 40),
-                      const SizedBox(height: 8),
-                      Text(
-                        '$lowStock',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.orange.shade900,
-                        ),
-                      ),
-                      Text(
-                        'Stock Bajo',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.orange.shade700,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            if (lowStock > 0 && outOfStock > 0) const SizedBox(width: 16),
-            if (outOfStock > 0)
-              Expanded(
-                child: Container(
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.red.shade50,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: Colors.red.shade200),
-                  ),
-                  child: Column(
-                    children: [
-                      Icon(Icons.dangerous, color: Colors.red.shade700, size: 40),
-                      const SizedBox(height: 8),
-                      Text(
-                        '$outOfStock',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.w800,
-                          color: Colors.red.shade900,
-                        ),
-                      ),
-                      Text(
-                        'Sin Stock',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.red.shade700,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          ],
-        ),
-      ],
-    );
-  }
 }
+
 

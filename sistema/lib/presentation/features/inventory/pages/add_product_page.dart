@@ -6,6 +6,7 @@ import 'dart:io';
 import 'package:intl/intl.dart';
 import '../../../../app/providers/app_provider.dart';
 import '../../../../shared/layouts/main_layout.dart';
+import '../../../../core/services/api_service.dart';
 
 /// Formulario completo para agregar/editar productos
 class AddProductPage extends StatefulWidget {
@@ -521,22 +522,33 @@ class _AddProductPageState extends State<AddProductPage> {
     setState(() => _isLoading = true);
 
     try {
+      final provider = Provider.of<AppProvider>(context, listen: false);
+      
       final productData = {
+        'negocio_id': provider.currentBusinessId,
         'nombre': _nombreController.text.trim(),
-        'codigo': _codigoController.text.trim(),
         'descripcion': _descripcionController.text.trim(),
         'categoria': _selectedCategory,
-        'unidad': _selectedUnit,
-        'precio_compra': double.parse(_precioCompraController.text),
-        'precio_venta': double.parse(_precioVentaController.text),
-        'stock_actual': int.parse(_stockActualController.text),
-        'stock_minimo': int.parse(_stockMinimoController.text),
-        'imagen_url': _selectedImage?.path,
-        'fecha_vencimiento': _selectedDate,
+        'codigo_barras': _codigoController.text.trim(),
+        'precio': double.parse(_precioVentaController.text),
+        'stock': int.parse(_stockActualController.text),
+        'atributos': {
+          'precio_compra': double.parse(_precioCompraController.text),
+          'stock_minimo': int.parse(_stockMinimoController.text),
+          'unidad': _selectedUnit,
+          'imagen_url': _selectedImage?.path,
+          'fecha_vencimiento': _selectedDate?.toIso8601String(),
+        },
       };
 
-      // TODO: Guardar en base de datos
-      await Future.delayed(const Duration(seconds: 1)); // Simulación
+      if (widget.product == null) {
+        // Crear nuevo producto
+        await ApiService.createProduct(productData);
+      } else {
+        // Actualizar producto existente
+        final productId = widget.product!['id'];
+        await ApiService.updateProduct(productId, productData);
+      }
 
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -564,8 +576,17 @@ class _AddProductPageState extends State<AddProductPage> {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Error: $e'),
+            content: Row(
+              children: [
+                const Icon(Icons.error_outline, color: Colors.white),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Text('Error: ${e.toString()}'),
+                ),
+              ],
+            ),
             backgroundColor: const Color(0xFFEF4444),
+            duration: const Duration(seconds: 4),
           ),
         );
       }
